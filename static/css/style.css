@@ -1,0 +1,9 @@
+body {
+    font-family: Arial, sans-serif;
+}
+#statusDashboard {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+}

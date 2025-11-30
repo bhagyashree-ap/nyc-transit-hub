@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NYC Transit Hub Dashboard</title>
+
+<!-- Bootstrap -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<!-- Map -->
+<link rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+  * {
+    transition: all 0.3s ease;
+  }
+
+  body {
+    background-image: url('/static/dash.jpg');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    min-height: 100vh;
+    padding: 20px 0;
+  }
+
+  .navbar-custom {
+    background: rgba(0, 57, 166, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 15px 0;
+    margin-bottom: 30px;
+  }
+
+  .navbar-custom h1 {
+    color: white;
+    font-weight: bold;
+    margin: 0;
+    font-size: 28px;
+  }
+
+  .navbar-buttons {
+    display: flex;
+    gap: 10px;
+  }
+
+  .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    margin-bottom: 25px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: rgba(255, 255, 255, 0.97);
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  }
+
+  .card-header {
+    background: linear-gradient(135deg, #0039a6 0%, #003d7a 100%);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 15px;
+    border: none;
+  }
+
+  .card-body {
+    padding: 20px;
+  }
+
+  .error-box {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 8px;
+    display: none;
+    border-left: 4px solid #721c24;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .form-select, .form-control {
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .form-select:focus, .form-control:focus {
+    border-color: #0039a6;
+    box-shadow: 0 0 0 0.2rem rgba(0, 57, 166, 0.25);
+  }
+
+  .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0039a6 0%, #003d7a 100%);
+    border: none;
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #003d7a 0%, #002b5c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 57, 166, 0.4);
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+  }
+
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+    transform: translateY(-2px);
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    border: none;
+  }
+
+  .btn-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+  }
+
+  #map {
+    height: 400px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .list-group-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .list-group-item:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+  }
+
+  .table {
+    font-size: 14px;
+  }
+
+  .table thead {
+    background: #f8f9fa;
+  }
+
+  .table th {
+    font-weight: 600;
+    color: #0039a6;
+    border-bottom: 2px solid #0039a6;
+  }
+
+  .row {
+    margin-bottom: 15px;
+  }
+
+  .row .col-md-5, .row .col-md-3, .row .col-md-2 {
+    margin-bottom: 10px;
+  }
+
+  /* Alert severity badges */
+  .alert-critical {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+  }
+
+  .alert-major {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+  }
+
+  .alert-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    color: #333;
+  }
+
+  .alert-minor {
+    background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+    color: #333;
+  }
+
+  .alert-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+  }
+
+  .alert-item {
+    padding: 12px;
+    border-left: 4px solid;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  .alert-item.critical {
+    border-left-color: #dc3545;
+  }
+
+  .alert-item.major {
+    border-left-color: #ff6b6b;
+  }
+
+  .alert-item.warning {
+    border-left-color: #ffc107;
+  }
+
+  .alert-item.minor {
+    border-left-color: #ffd700;
+  }
+
+  .alert-item.info {
+    border-left-color: #17a2b8;
+  }
+
+  @media (max-width: 768px) {
+    .navbar-custom h1 {
+      font-size: 22px;
+    }
+
+    .card {
+      margin-bottom: 15px;
+    }
+
+    #map {
+      height: 300px;
+    }
+
+    .navbar-buttons {
+      flex-wrap: wrap;
+    }
+  }
+</style>
+
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar-custom">
+  <div class="container d-flex justify-content-between align-items-center">
+    <h1><i class="fas fa-train"></i> NYC Transit Hub</h1>
+    <div class="navbar-buttons">
+      <a class="btn btn-success btn-sm" href="/static/subwaydiagram.pdf" download>
+        <i class="fas fa-download"></i> Subway Diagram
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- DEBUG ERROR BOX -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- ############################## -->
+  <!-- FAVORITES SECTION -->
+  <!-- ############################## -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fas fa-heart"></i> Favorites
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-5">
+          <label class="form-label"><small>Select Station</small></label>
+          <select id="stationSelect" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label"><small>Select Route</small></label>
+          <select id="routeSelect" class="form-select"></select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button class="btn btn-primary w-100" id="addFavBtn">
+            <i class="fas fa-plus"></i> Add Favorite
+          </button>
+        </div>
+      </div>
+
+      <hr>
+      <h6 class="mt-3">Your Favorites:</h6>
+      <ul id="favoritesList" class="list-group"></ul>
+    </div>
+  </div>
+
+  <!-- ############################## -->
+  <!-- ACCESSIBILITY SECTION -->
+  <!-- ############################## -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fas fa-wheelchair"></i> Accessibility Info
+    </div>
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label class="form-label"><small>Filter by Accessibility</small></label>
+          <select id="filter-accessible" class="form-select">
+            <option value="">All</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label"><small>Filter by Line</small></label>
+          <input type="text" id="filter-line"
+                 class="form-control"
+                 placeholder="A, 1, 7...">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label"><small>Filter by Station</small></label>
+          <input type="text" id="filter-station"
+                 class="form-control"
+                 placeholder="Station name">
+        </div>
+      </div>
+
+      <button id="apply-filters" class="btn btn-primary btn-sm mb-3">
+        <i class="fas fa-filter"></i> Apply Filters
+      </button>
+
+      <div class="table-responsive">
+        <table class="table table-hover" id="accessibilityTable">
+          <thead>
+            <tr>
+              <th>Station</th>
+              <th>Type</th>
+              <th>Accessible</th>
+              <th>Reason</th>
+              <th>Return Time</th>
+              <th>Line</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ############################## -->
+  <!-- ALERTS SECTION -->
+  <!-- ############################## -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fas fa-exclamation-circle"></i> Service Alerts
+    </div>
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label"><small>Alert Type</small></label>
+          <select id="alertTypeSelect" class="form-select">
+            <option value="all_alerts">All Alerts</option>
+            <option value="subway_alerts">Subway Alerts</option>
+            <option value="bus_alerts">Bus Alerts</option>
+            <option value="lirr_alerts">LIRR Alerts</option>
+            <option value="mnr_alerts">Metro-North Alerts</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label"><small>Filter by Date</small></label>
+          <input type="date" id="alertDateFilter" class="form-control">
+        </div>
+      </div>
+
+      <button id="filterAlertsBtn" class="btn btn-primary btn-sm mb-3">
+        <i class="fas fa-filter"></i> Filter Alerts
+      </button>
+
+      <ul id="alertsList" class="list-group">
+        <li class="list-group-item"><i class="fas fa-spinner fa-spin"></i> Loading alerts...</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ############################## -->
+  <!-- MAP SECTION -->
+  <!-- ############################## -->
+  <div class="card">
+    <div class="card-header">
+      <i class="fas fa-map-location-dot"></i> Transit Map
+    </div>
+    <div class="card-body">
+      <div id="map"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- MAIN DASHBOARD LOGIC -->
+<script>
+let stations = [];
+let favorites = [];
+let trainMarkers = [];
+let allAlerts = [];
+
+// DEBUG FUNCTION
+function showError(msg) {
+  console.error(msg);
+  document.getElementById('errorBox').textContent = '⚠️ ' + msg;
+  document.getElementById('errorBox').style.display = 'block';
+}
+
+let map = L.map('map').setView([40.7128, -74.0060], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+           { attribution: '© OpenStreetMap contributors' })
+  .addTo(map);
+
+/* ------- ALERT SEVERITY DETECTION ------- */
+function getAlertSeverity(alertText) {
+  if (!alertText) return 'info';
+  
+  const text = alertText.toLowerCase();
+  if (text.includes('suspended') || text.includes('major') || text.includes('closed')) return 'critical';
+  if (text.includes('delay') || text.includes('service change') || text.includes('reroute')) return 'major';
+  if (text.includes('crowded') || text.includes('alert')) return 'warning';
+  if (text.includes('minor') || text.includes('note')) return 'minor';
+  return 'info';
+}
+
+/* ------- STATIONS ------- */
+function loadStations() {
+  fetch('/api/stations')
+    .then(res => {
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      console.log('Stations loaded:', data.length, 'stations');
+      stations = data;
+      let stationSelect = document.getElementById('stationSelect');
+      stationSelect.innerHTML = '';
+      data.forEach(st => {
+        let option = document.createElement('option');
+        option.value = st.station_name;
+        option.dataset.line = st.line;
+        option.text = st.station_name;
+        stationSelect.appendChild(option);
+      });
+      updateRouteOptions();
+    })
+    .catch(err => showError('Error loading stations: ' + err.message));
+}
+
+function updateRouteOptions() {
+  let station = document.getElementById('stationSelect').value;
+  let routeSelect = document.getElementById('routeSelect');
+  routeSelect.innerHTML = '';
+  let lines = stations.filter(s => s.station_name === station).map(s => s.line);
+  if(lines.length === 0) lines = ['Unknown'];
+
+  lines.forEach(l => {
+    let option = document.createElement('option');
+    option.value = l;
+    option.text = l;
+    routeSelect.appendChild(option);
+  });
+}
+
+document.getElementById('stationSelect')
+  .addEventListener('change', updateRouteOptions);
+
+/* ------- FAVORITES ------- */
+document.getElementById('addFavBtn')
+  .addEventListener('click', () => {
+    let station = document.getElementById('stationSelect').value;
+    let route = document.getElementById('routeSelect').value;
+
+    fetch('/api/favorites', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({station, route})
+    })
+    .then(res => {
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      return res.json();
+    })
+    .then(() => loadFavorites())
+    .catch(err => showError('Error adding favorite: ' + err.message));
+});
+
+function loadFavorites() {
+  fetch('/api/favorites')
+    .then(res => {
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      console.log('Favorites loaded:', data);
+      favorites = data;
+      let ul = document.getElementById('favoritesList');
+      ul.innerHTML = '';
+
+      if(favorites.length === 0){
+        let li = document.createElement('li');
+        li.className = 'list-group-item text-muted';
+        li.innerHTML = '<i class="fas fa-inbox"></i> No favorites added yet';
+        ul.appendChild(li);
+        return;
+      }
+
+      favorites.forEach(f => {
+        let li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `<span><i class="fas fa-train"></i> ${f.station} - <strong>${f.route}</strong></span>`;
+
+        let btn = document.createElement('button');
+        btn.className = 'btn btn-danger btn-sm';
+        btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+        btn.onclick = () => {
+          fetch('/api/favorites', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(f)
+          }).then(() => loadFavorites());
+        };
+
+        li.appendChild(btn);
+        ul.appendChild(li);
+      });
+    })
+    .catch(err => showError('Error loading favorites: ' + err.message));
+}
+
+/* ------- ACCESSIBILITY ------- */
+function populateAccessibilityTable(data) {
+  let tbody = document.querySelector('#accessibilityTable tbody');
+  tbody.innerHTML = '';
+
+  let filteredData = data.accessibility || [];
+
+  const filterAccessible = document.getElementById('filter-accessible').value;
+  const filterLine = document.getElementById('filter-line').value.trim().toUpperCase();
+  const filterStation = document.getElementById('filter-station').value.trim().toLowerCase();
+
+  filteredData = filteredData.filter(row => {
+      let a = filterAccessible ? row.accessible === filterAccessible : true;
+      let l = filterLine ? row.line.toUpperCase().includes(filterLine) : true;
+      let s = filterStation ? row.station.toLowerCase().includes(filterStation) : true;
+      return a && l && s;
+  });
+
+  if(filteredData.length === 0){
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No data available</td></tr>';
+      return;
+  }
+
+  filteredData.forEach(a => {
+    let tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${a.station}</td><td>${a.type}</td><td><span class="badge bg-${a.accessible === 'Yes' ? 'success' : 'warning'}">${a.accessible}</span></td>
+       <td>${a.reason}</td><td>${a.return_time}</td><td><strong>${a.line}</strong></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('apply-filters')
+  .addEventListener('click', () => {
+    fetch('/get_accessibility')
+      .then(res => {
+        if (!res.ok) throw new Error(`API returned ${res.status}`);
+        return res.json();
+      })
+      .then(data => populateAccessibilityTable(data))
+      .catch(err => showError('Error loading accessibility: ' + err.message));
+});
+
+function loadAccessibility() {
+  fetch('/get_accessibility')
+    .then(res => {
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      return res.json();
+    })
+    .then(data => populateAccessibilityTable(data))
+    .catch(err => showError('Error loading accessibility: ' + err.message));
+}
+
+/* ------- ALERTS WITH SEVERITY & DATE FILTERING ------- */
+function displayAlerts() {
+  const list = document.getElementById('alertsList');
+  const selectedDate = document.getElementById('alertDateFilter').value;
+
+  list.innerHTML = '';
+
+  let filtered = allAlerts;
+
+  // Filter by date if selected
+  if (selectedDate) {
+    const filterDateObj = new Date(selectedDate);
+    filtered = filtered.filter(a => {
+      if (!a.start_time) return false;
+      const alertDate = new Date(a.start_time * 1000);
+      return alertDate.toDateString() === filterDateObj.toDateString();
+    });
+  }
+
+  if(filtered.length === 0){
+    list.innerHTML = '<li class="list-group-item text-muted"><i class="fas fa-check-circle"></i> No alerts found</li>';
+    return;
+  }
+
+  filtered.forEach(item => {
+    const text = item.text || 'Alert';
+    const t = item.start_time ?
+        new Date(item.start_time*1000).toLocaleString() : 'N/A';
+    const severity = getAlertSeverity(text);
+
+    const li = document.createElement('li');
+    li.className = `alert-item ${severity}`;
+    li.innerHTML =
+      `<div class="d-flex justify-content-between align-items-start">
+        <div style="flex: 1;">
+          <span class="badge alert-${severity} mb-2">${severity.toUpperCase()}: ${item.alert_type || 'Alert'}</span><br>
+          <strong>${text}</strong><br>
+          <small class="text-muted">📅 ${t}</small>
+        </div>
+      </div>`;
+    list.appendChild(li);
+  });
+}
+
+function loadAlerts() {
+  const select = document.getElementById('alertTypeSelect');
+
+  async function fetchAlerts() {
+    document.getElementById('alertsList').innerHTML = '<li class="list-group-item"><i class="fas fa-spinner fa-spin"></i> Loading...</li>';
+
+    try {
+      const res = await fetch(`/api/alerts/${select.value}`);
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      const data = await res.json();
+
+      // Filter 2025
+      allAlerts = data.filter(a => {
+        if (!a.start_time) return false;
+        return new Date(a.start_time * 1000).getFullYear() === 2025;
+      });
+
+      // Sort latest first
+      allAlerts.sort((a,b)=>(b.start_time||0)-(a.start_time||0));
+
+      displayAlerts();
+
+    } catch(err) {
+      showError('Error loading alerts: ' + err.message);
+    }
+  }
+
+  select.addEventListener('change', fetchAlerts);
+  document.getElementById('filterAlertsBtn').addEventListener('click', displayAlerts);
+  document.getElementById('alertDateFilter').addEventListener('change', displayAlerts);
+  fetchAlerts();
+}
+
+/* ------- MAP ------- */
+function loadMapMarkers() {
+  stations.forEach(s => {
+    if(s.lat && s.lon){
+      L.marker([s.lat, s.lon])
+        .addTo(map)
+        .bindPopup(`<b>${s.station_name}</b> (${s.line})`);
+    }
+  });
+}
+
+/* ------- INIT ------- */
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('Dashboard loaded. Backend URL:', window.location.origin);
+  loadStations();
+  loadFavorites();
+  loadAccessibility();
+  loadAlerts();
+  setTimeout(loadMapMarkers, 500);
+});
+</script>
+
+</body>
+</html>

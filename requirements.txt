@@ -1,0 +1,12 @@
+Flask==3.0.0
+flask-cors==4.0.0
+requests==2.31.0
+firebase-admin==6.0.1
+pytest==7.4.2
+python-dotenv==1.0.0
+protobuf==4.25.2
+gtfs-realtime-bindings==1.0.0
+pyrebase4==4.7.1
+google-auth==2.27.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
