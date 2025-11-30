@@ -8,7 +8,7 @@ A real-time NYC subway and transit dashboard with:<br>
 
 🚀 Setup
 1. Clone the repository
-git clone git@github.com:bhagyashree-ap/nyc-transit-hub.git
+git clone `git@github.com:bhagyashree-ap/nyc-transit-hub.git`
 cd test-leetcode
 
 2. Create a Python virtual environment
